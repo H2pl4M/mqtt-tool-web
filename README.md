@@ -24,11 +24,11 @@
 
 ## ☑️ TODO
 
-- [x] 支持 MQTT-v3 切换
-- [x] 支持重连机制
-- [x] 支持遗嘱消息
-- [√] 支持 vercel serverless
-- [x] 支持 cloudflare CDN 加速
+- [ ] 支持 MQTT-v3 切换
+- [ ] 支持重连机制
+- [ ] 支持遗嘱消息
+- [x] 支持 vercel serverless
+- [ ] 支持 cloudflare CDN 加速
 
 ## 🧑🏻‍🔧技术栈
 
