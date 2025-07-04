@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sun, Moon, Plug, PlugZap, MessageSquare, History } from 'lucide-react';
+import { Sun, Moon, Plug, PlugZap, MessageSquare, History, Radio, Send } from 'lucide-react';
 import mqtt from 'mqtt';
 
 // 生成随机MQTT客户端ID
@@ -44,6 +44,15 @@ const MQTTTool = () => {
   const [clientId, setClientId] = useState(generateMqttClientId());
   const [keepAlive, setKeepAlive] = useState(120);
   const [cleanStart, setCleanStart] = useState(true);
+  const [mqttVersion, setMqttVersion] = useState('5.0');
+  
+  // 遗嘱消息参数
+  const [willTopic, setWillTopic] = useState('');
+  const [willMessage, setWillMessage] = useState('');
+  const [willQos, setWillQos] = useState('0');
+  const [willRetain, setWillRetain] = useState(false);
+  const [enableWill, setEnableWill] = useState(false);
+  const [willPayloadType, setWillPayloadType] = useState('text');
   
   // 订阅参数
   const [topics, setTopics] = useState([]);
@@ -88,6 +97,34 @@ const MQTTTool = () => {
       reconnectPeriod: 0,
       rejectUnauthorized: false
     };
+    
+    // 设置MQTT版本
+    if (mqttVersion === '3.1') {
+      options.protocolVersion = 3;
+    } else if (mqttVersion === '3.1.1') {
+      options.protocolVersion = 4;
+    } else if (mqttVersion === '5.0') {
+      options.protocolVersion = 5;
+    }
+    
+    // 添加遗嘱消息配置
+    if (enableWill && willTopic && willMessage) {
+      let willPayload = willMessage;
+      if (willPayloadType === 'json') {
+        try {
+          willPayload = JSON.stringify(JSON.parse(willMessage));
+        } catch (e) {
+          console.error('遗嘱消息JSON解析错误:', e);
+        }
+      }
+      
+      options.will = {
+        topic: willTopic,
+        payload: willPayload,
+        qos: parseInt(willQos),
+        retain: willRetain
+      };
+    }
     
     const mqttClient = mqtt.connect(brokerUrl, options);
     
@@ -214,24 +251,25 @@ const MQTTTool = () => {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col ${darkMode ? 'dark bg-gray-900' : 'bg-gray-100'}`}>
-      <div className="flex justify-between items-center p-4 border-b">
-        <h1 className="text-2xl font-bold">MQTT连接工具</h1>
+    <div className={`min-h-screen flex flex-col ${darkMode ? 'dark bg-gray-900' : 'bg-gray-50'}`}>
+      <div className="flex justify-between items-center p-6 border-b bg-white dark:bg-gray-800 shadow-sm">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">MQTT连接工具</h1>
         <Button 
           variant="outline" 
           size="icon"
           onClick={() => setDarkMode(!darkMode)}
           aria-label="切换主题"
+          className="hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
       </div>
 
-      <div className="flex-1 container mx-auto p-4 max-w-4xl">
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plug className="h-5 w-5" /> 连接设置
+      <div className="flex-1 container mx-auto p-6 max-w-6xl">
+        <Card className="mb-8 shadow-lg border-0">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Plug className="h-5 w-5 text-blue-600 dark:text-blue-400" /> 连接设置
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -271,6 +309,19 @@ const MQTTTool = () => {
                 />
               </div>
               <div>
+                <Label htmlFor="mqttVersion">MQTT版本</Label>
+                <Select value={mqttVersion} onValueChange={setMqttVersion}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择版本" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="3.1">MQTT 3.1</SelectItem>
+                    <SelectItem value="3.1.1">MQTT 3.1.1</SelectItem>
+                    <SelectItem value="5.0">MQTT 5.0</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label htmlFor="keepAlive">Keep Alive (秒)</Label>
                 <Input
                   id="keepAlive"
@@ -291,50 +342,130 @@ const MQTTTool = () => {
               </div>
             </div>
             
-            <div className="flex items-center gap-2">
-              <Button 
-                onClick={isConnected ? disconnectFromBroker : connectToBroker}
-                className={`${isConnected ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
-              >
-                {isConnected ? (
-                  <>
-                    <PlugZap className="h-4 w-4 mr-2" /> 断开连接
-                  </>
-                ) : (
-                  <>
-                    <Plug className="h-4 w-4 mr-2" /> 连接
-                  </>
-                )}
-              </Button>
-              <div className={`ml-2 px-3 py-1 rounded-full text-sm ${
-                isConnected ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 
-                connectionStatus.includes('错误') ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 
-                'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-              }`}>
-                {connectionStatus}
+            {/* 遗嘱消息设置 */}
+            <div className="border-t pt-4 mt-4">
+              <div className="flex items-center space-x-2 mb-4">
+                <Switch 
+                  id="enableWill" 
+                  checked={enableWill} 
+                  onCheckedChange={setEnableWill} 
+                />
+                <Label htmlFor="enableWill" className="font-medium">启用遗嘱消息</Label>
               </div>
+              
+              {enableWill && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="willTopic">遗嘱主题</Label>
+                      <Input
+                        id="willTopic"
+                        value={willTopic}
+                        onChange={(e) => setWillTopic(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="willQos">遗嘱QoS</Label>
+                      <Select value={willQos} onValueChange={setWillQos}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="QoS" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0</SelectItem>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-end">
+                      <div className="flex items-center space-x-2">
+                        <Switch 
+                          id="willRetain" 
+                          checked={willRetain} 
+                          onCheckedChange={setWillRetain} 
+                        />
+                        <Label htmlFor="willRetain">遗嘱Retain</Label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="willMessage">遗嘱消息内容</Label>
+                    <div className="mt-2">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Label className="text-sm">Payload类型:</Label>
+                        <Select value={willPayloadType} onValueChange={setWillPayloadType}>
+                          <SelectTrigger className="w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="text">文本</SelectItem>
+                            <SelectItem value="json">JSON</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <textarea
+                        id="willMessage"
+                        value={willMessage}
+                        onChange={(e) => setWillMessage(e.target.value)}
+                        className="flex w-full h-24 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
+            
+                          <div className="flex items-center gap-4 mt-8">
+                <Button 
+                  onClick={isConnected ? disconnectFromBroker : connectToBroker}
+                  className={`px-6 py-2 font-medium transition-all duration-200 ${
+                    isConnected 
+                      ? 'bg-red-500 hover:bg-red-600 shadow-lg hover:shadow-xl' 
+                      : 'bg-green-500 hover:bg-green-600 shadow-lg hover:shadow-xl'
+                  }`}
+                >
+                  {isConnected ? (
+                    <>
+                      <PlugZap className="h-4 w-4 mr-2" /> 断开连接
+                    </>
+                  ) : (
+                    <>
+                      <Plug className="h-4 w-4 mr-2" /> 连接
+                    </>
+                  )}
+                </Button>
+                <div className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm ${
+                  isConnected 
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border border-green-200 dark:border-green-700' : 
+                    connectionStatus.includes('错误') 
+                      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-200 dark:border-red-700' : 
+                      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-700'
+                }`}>
+                  {connectionStatus}
+                </div>
+              </div>
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="h-full flex flex-col">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" /> 订阅管理
-              </CardTitle>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <Card className="h-full flex flex-col shadow-lg border-0">
+            <CardHeader className="pb-4">
+                          <CardTitle className="flex items-center gap-2 text-lg">
+              <Radio className="h-5 w-5 text-green-600 dark:text-green-400" /> 订阅管理
+            </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
               <div className="mb-4 flex-1">
                 <Label>当前订阅</Label>
-                <div className="mt-2 space-y-2 h-40 overflow-y-auto border rounded p-2 bg-gray-50 dark:bg-gray-800">
+                <div className="mt-2 space-y-2 h-48 overflow-y-auto border rounded-lg p-3 bg-gray-50 dark:bg-gray-800 shadow-inner">
                   {topics.length === 0 ? (
                     <div className="text-gray-500 text-sm py-2 text-center h-full flex items-center justify-center">
                       无订阅主题
                     </div>
                   ) : (
                     topics.map((topic, index) => (
-                      <div key={index} className="flex justify-between items-center p-2 bg-white dark:bg-gray-700 rounded shadow-sm">
+                      <div key={index} className="flex justify-between items-center p-3 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
                         <div>
                           <span className="font-medium">{topic.topic}</span>
                           <span className="text-xs ml-2 text-gray-500">QoS: {topic.qos}</span>
@@ -387,11 +518,11 @@ const MQTTTool = () => {
             </CardContent>
           </Card>
           
-          <Card className="h-full flex flex-col">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" /> 消息发布
-              </CardTitle>
+          <Card className="h-full flex flex-col shadow-lg border-0">
+            <CardHeader className="pb-4">
+                          <CardTitle className="flex items-center gap-2 text-lg">
+              <Send className="h-5 w-5 text-purple-600 dark:text-purple-400" /> 消息发布
+            </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
               <div className="space-y-4 flex-1">
@@ -486,46 +617,47 @@ const MQTTTool = () => {
           </Card>
         </div>
         
-        <Card className="mt-6">
-          <CardHeader>
+        <Card className="mt-8 shadow-lg border-0">
+          <CardHeader className="pb-4">
             <div className="flex justify-between items-center">
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5" /> 消息历史
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <History className="h-5 w-5 text-orange-600 dark:text-orange-400" /> 消息历史
               </CardTitle>
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={clearHistory}
+                className="hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 清空历史
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="h-64 overflow-y-auto border rounded">
+            <div className="h-80 overflow-y-auto border rounded-lg shadow-inner">
               {messages.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-gray-500">
                   暂无消息
                 </div>
               ) : (
-                <div className="p-2 space-y-2">
+                <div className="p-4 space-y-3">
                   {messages.map((msg, index) => (
                     <div 
                       key={index} 
-                      className={`p-3 rounded ${
+                      className={`p-4 rounded-lg shadow-sm border ${
                         msg.type === '订阅消息' 
-                          ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500' 
-                          : 'bg-green-50 dark:bg-green-900/30 border-l-4 border-green-500'
+                          ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700' 
+                          : 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700'
                       }`}
                     >
                       <div className="flex justify-between text-sm">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{msg.topic}</span>
-                          <span className={`px-2 py-0.5 rounded text-xs ${
-                            msg.type === '订阅消息' 
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
-                              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          }`}>
+                                                  <span className={`px-2 py-1 rounded-md text-xs font-medium ${
+                          msg.type === '订阅消息' 
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
+                            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                        }`}>
                             {msg.type}
                           </span>
                         </div>
@@ -544,8 +676,10 @@ const MQTTTool = () => {
         </Card>
       </div>
       
-      <footer className="py-4 text-center text-sm text-gray-500 dark:text-gray-400 border-t">
-        MQTT连接工具 © {new Date().getFullYear()}
+      <footer className="py-6 text-center text-sm text-gray-500 dark:text-gray-400 border-t bg-white dark:bg-gray-800">
+        <div className="container mx-auto">
+          MQTT连接工具 © {new Date().getFullYear()}
+        </div>
       </footer>
     </div>
   );

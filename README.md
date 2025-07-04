@@ -8,11 +8,12 @@
 ## ✨ 特性
 
 - 🎁 界面简洁明快，深色浅色模式一键切换
-- 🦄 支持 MQTT-v5 协议连接(wss/ws)，支持 Keep Alive 与 Clean Start
+- 🦄 支持 MQTT协议连接(wss/ws)，支持 MQTT 版本切换与遗嘱消息
 - ☑️ 消息发布，支持 QoS 与 Retain 配置
 - ✏  主题订阅，支持 QoS 配置与多主题订阅
 - 🎯 发布消息内容支持 json/base64/text/Hex
 - 🎈 订阅消息与发布消息历史记录
+- ⛏  支持消息发布内容定制处理
 - ⛏  支持消息发布内容定制处理
 
 ## 🎉 应用界面
@@ -24,9 +25,9 @@
 
 ## ☑️ TODO
 
-- [ ] 支持 MQTT-v3 切换
+- [x] 支持 MQTT 版本切换
+- [x] 支持遗嘱消息
 - [ ] 支持重连机制
-- [ ] 支持遗嘱消息
 - [x] 支持 vercel serverless
 - [ ] 支持 cloudflare CDN 加速
 
