@@ -41,7 +41,7 @@
 
 - 所有代码均基于 AI 生成，对话提示词可联系作者提供
 - 设计支持跨平台部署，页面支持多端
-- vercel 演示地址: https://mqtt-tool-bfs4hn5h0-h2pl4us-projects.vercel.app
+- vercel 演示地址: https://mqtt-tool-web-git-main-h2pl4us-projects.vercel.app
 
 ## 🛠 快速开始
 
